@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Cipher Detective</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="main-container">
+
+    <div class="sidebar">
+        <h2>Investigations</h2>
+        <button>+ New Case</button>
+        <div class="history-item">Morse Investigation</div>
+        <div class="history-item">Caesar Cipher</div>
+        <div class="history-item">Unknown Pattern</div>
+    </div>
+
+    <div class="chat-area">
+        <div class="chat-header">
+            <h1>Cipher Detective</h1>
+        </div>
+
+        <div class="messages" id="results">
+            </div>
+
+        <div class="input-bar">
+            <input type="text" id="inputText" placeholder="Enter text, symbols or code...">
+            <button>🎤</button>
+            <button>📷</button>
+            <button onclick="analyzeCode()">➤</button>
+        </div>
+    </div>
+
+    <div class="star-panel">
+        <h2>Starred</h2>
+        <div class="star-card">HELLO</div>
+        <div class="star-card">SECRET MESSAGE</div>
+    </div>
+
+</div>
+
+<script>
+async function analyzeCode() {
+    let text = document.getElementById("inputText").value.trim();
+    if (!text) return;
+
+    let response = await fetch("/analyze", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            text: text
+        })
+    });
+
+    let data = await response.json();
+    let resultsDiv = document.getElementById("results");
+
+    // Clear previous results to simulate an interactive analysis update
+    resultsDiv.innerHTML = "";
+
+    // Append user input as a distinct chat bubble first
+    let userMessage = document.createElement('div');
+    userMessage.className = 'user-message';
+    userMessage.textContent = text;
+    resultsDiv.appendChild(userMessage);
+
+    // Render output cards matching your CSS styles
+    data.forEach(result => {
+        resultsDiv.innerHTML += `
+        <div class="result-card">
+            <h2>${result.solution}</h2>
+            <p><b>Confidence:</b> ${result.confidence}%</p>
+            <p><b>Logic:</b> ${result.reason}</p>
+            <p><b>Shift:</b> ${result.shift}</p>
+            <div class="card-buttons">
+                <button>⭐ Star</button>
+            </div>
+        </div>
+        `;
+    });
+
+    // Automatically empty the text block after processing
+    document.getElementById("inputText").value = "";
+    
+    // Auto-scroll to the bottom of the window
+    resultsDiv.scrollTop = resultsDiv.scrollHeight;
+}
+
+// Allow execution by simply pressing the "Enter" key inside the input bar
+document.getElementById("inputText").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+        analyzeCode();
+    }
+});
+</script>
+
+</body>
+</html>

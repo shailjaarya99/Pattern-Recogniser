@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Cipher Detective</title>
+
+    <link rel="stylesheet"
+          href="/static/style.css">
+
+</head>
+
+<body>
+
+<div class="main-container">
+
+    <!-- LEFT SIDEBAR -->
+
+    <div class="sidebar">
+
+        <h2>Investigations</h2>
+
+        <button class="new-case-btn">
+            + New Case
+        </button>
+
+        <div class="history-item">
+            Morse Investigation
+        </div>
+
+        <div class="history-item">
+            Caesar Cipher
+        </div>
+
+        <div class="history-item">
+            Unknown Pattern
+        </div>
+
+    </div>
+
+
+    <!-- CHAT AREA -->
+
+    <div class="chat-area">
+
+        <div class="chat-header">
+
+            <h1>Cipher Detective</h1>
+
+        </div>
+
+
+        <!-- MESSAGES -->
+
+        <div class="messages" id="messages">
+
+        </div>
+
+
+        <!-- INPUT BAR -->
+
+        <div class="input-bar">
+
+            <input
+                type="text"
+                id="cipherInput"
+                placeholder="Enter text, symbols or code..."
+            >
+
+            <button>🎤</button>
+
+            <button>📷</button>
+
+            <button id="sendBtn">
+                ➤
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- STAR PANEL -->
+
+    <div class="star-panel">
+
+        <h2>Starred</h2>
+
+        <div class="star-card">
+            HELLO
+        </div>
+
+        <div class="star-card">
+            SECRET MESSAGE
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+const sendBtn = document.getElementById("sendBtn");
+
+const cipherInput = document.getElementById("cipherInput");
+
+const messagesContainer = document.getElementById("messages");
+
+
+// SEND DATA FUNCTION
+
+async function sendData() {
+
+    const text = cipherInput.value.trim();
+
+    if (!text) return;
+
+
+    // USER MESSAGE
+
+    const userDiv = document.createElement("div");
+
+    userDiv.className = "user-message";
+
+    userDiv.innerText = text;
+
+    messagesContainer.appendChild(userDiv);
+
+
+    // CLEAR INPUT
+
+    cipherInput.value = "";
+
+
+    try {
+
+        // FETCH API
+
+        const response = await fetch("/analyze", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                text: text
+            })
+
+        });
+
+
+        const data = await response.json();
+
+
+        // ERROR HANDLING
+
+        if (data.error) {
+
+            const errorDiv = document.createElement("div");
+
+            errorDiv.className = "result-card";
+
+            errorDiv.innerHTML = `
+                <h2>Error</h2>
+                <p>${data.error}</p>
+            `;
+
+            messagesContainer.appendChild(errorDiv);
+
+            return;
+        }
+
+
+        // NO RESULTS
+
+        if (data.length === 0) {
+
+            const noResultDiv = document.createElement("div");
+
+            noResultDiv.className = "result-card";
+
+            noResultDiv.innerHTML = `
+                <h2>No Results Found</h2>
+            `;
+
+            messagesContainer.appendChild(noResultDiv);
+
+        }
+
+
+        // SHOW RESULTS
+
+        data.forEach(result => {
+
+            const cardDiv = document.createElement("div");
+
+            cardDiv.className = "result-card";
+
+            cardDiv.innerHTML = `
+
+                <h2>${result.solution}</h2>
+
+                <p>
+                    <b>Confidence:</b>
+                    ${result.confidence}%
+                </p>
+
+                <p>
+                    <b>Logic:</b>
+                    ${result.reason}
+                </p>
+
+                <p>
+                    <b>Shift:</b>
+                    ${result.shift}
+                </p>
+
+                <div class="card-buttons">
+
+                    <button class="star-btn">
+                        ⭐ Star
+                    </button>
+
+                    <button class="retry-btn">
+                        ↻ Retry
+                    </button>
+
+                </div>
+            `;
+
+            messagesContainer.appendChild(cardDiv);
+
+        });
+
+
+        // AUTO SCROLL
+
+        messagesContainer.scrollTop =
+            messagesContainer.scrollHeight;
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        const failDiv = document.createElement("div");
+
+        failDiv.className = "result-card";
+
+        failDiv.innerHTML = `
+            <h2>Server Error</h2>
+            <p>Could not connect to Flask backend.</p>
+        `;
+
+        messagesContainer.appendChild(failDiv);
+
+    }
+
+}
+
+
+// BUTTON CLICK
+
+sendBtn.addEventListener("click", sendData);
+
+
+// ENTER KEY SUPPORT
+
+cipherInput.addEventListener("keypress", function(event) {
+
+    if (event.key === "Enter") {
+
+        sendData();
+
+    }
+
+});
+
+</script>
+
+</body>
+</html>
