@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cipher Detective</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -9,95 +11,199 @@
 <body>
 
 <div class="main-container">
-
     <div class="sidebar">
         <h2>Investigations</h2>
-        <button>+ New Case</button>
-        <div class="history-item">Morse Investigation</div>
-        <div class="history-item">Caesar Cipher</div>
-        <div class="history-item">Unknown Pattern</div>
+        <div id="historyList" class="history-list-container">
+            </div>
     </div>
 
     <div class="chat-area">
         <div class="chat-header">
-            <h1>Cipher Detective</h1>
+            <h1>Cipher Detective Console</h1>
         </div>
 
-        <div class="messages" id="results">
-            </div>
+        <div class="messages" id="messages"></div>
 
         <div class="input-bar">
-            <input type="text" id="inputText" placeholder="Enter text, symbols or code...">
-            <button>🎤</button>
-            <button>📷</button>
-            <button onclick="analyzeCode()">➤</button>
+            <input type="text" id="cipherInput" placeholder="Ask AI anything, or analyze cipher strings...">
+            <button id="camBtn" title="Scan Image/Trigger Camera">📷</button>
+            <button id="sendBtn">➤</button>
+            
+            <input type="file" id="mediaInput" accept="image/*" capture="environment" hidden>
         </div>
     </div>
 
     <div class="star-panel">
-        <h2>Starred</h2>
-        <div class="star-card">HELLO</div>
-        <div class="star-card">SECRET MESSAGE</div>
+        <h2>Starred Logs</h2>
+        <div id="starredContainer" class="starred-log-wrapper">
+            </div>
     </div>
-
 </div>
 
 <script>
-async function analyzeCode() {
-    let text = document.getElementById("inputText").value.trim();
-    if (!text) return;
+const sendBtn = document.getElementById("sendBtn");
+const cipherInput = document.getElementById("cipherInput");
+const messagesContainer = document.getElementById("messages");
+const camBtn = document.getElementById("camBtn");
+const mediaInput = document.getElementById("mediaInput");
+const historyList = document.getElementById("historyList");
+const starredContainer = document.getElementById("starredContainer");
 
-    let response = await fetch("/analyze", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            text: text
-        })
-    });
-
-    let data = await response.json();
-    let resultsDiv = document.getElementById("results");
-
-    // Clear previous results to simulate an interactive analysis update
-    resultsDiv.innerHTML = "";
-
-    // Append user input as a distinct chat bubble first
-    let userMessage = document.createElement('div');
-    userMessage.className = 'user-message';
-    userMessage.textContent = text;
-    resultsDiv.appendChild(userMessage);
-
-    // Render output cards matching your CSS styles
-    data.forEach(result => {
-        resultsDiv.innerHTML += `
-        <div class="result-card">
-            <h2>${result.solution}</h2>
-            <p><b>Confidence:</b> ${result.confidence}%</p>
-            <p><b>Logic:</b> ${result.reason}</p>
-            <p><b>Shift:</b> ${result.shift}</p>
-            <div class="card-buttons">
-                <button>⭐ Star</button>
-            </div>
-        </div>
-        `;
-    });
-
-    // Automatically empty the text block after processing
-    document.getElementById("inputText").value = "";
-    
-    // Auto-scroll to the bottom of the window
-    resultsDiv.scrollTop = resultsDiv.scrollHeight;
+function scrollToBottom() {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-// Allow execution by simply pressing the "Enter" key inside the input bar
-document.getElementById("inputText").addEventListener("keypress", function(e) {
-    if (e.key === "Enter") {
-        analyzeCode();
+// Sidepanel dynamic history injection tracking
+function addToHistory(text) {
+    const shortText = text.length > 22 ? text.substring(0, 19) + "..." : text;
+    const historyItem = document.createElement("div");
+    historyItem.className = "history-item";
+    historyItem.innerText = `📁 ${shortText}`;
+    
+    historyItem.addEventListener("click", () => {
+        cipherInput.value = text;
+        cipherInput.focus();
+    });
+    historyList.insertBefore(historyItem, historyList.firstChild);
+}
+
+// Global Dynamic Star Processing Engine Function
+function saveToStarredLogs(solutionTitle, contentReason) {
+    const starCard = document.createElement("div");
+    starCard.className = "star-card";
+    starCard.innerHTML = `
+        <strong>${solutionTitle}</strong>
+        <p style="font-size:11px; margin-top:4px; color:#c5c5d2; line-height:1.3;">${contentReason.substring(0, 75)}...</p>
+    `;
+    
+    // Clicking a starred item brings the text pattern directly back into the console frame
+    starCard.addEventListener("click", () => {
+        cipherInput.value = solutionTitle;
+        cipherInput.focus();
+    });
+    
+    starredContainer.insertBefore(starCard, starredContainer.firstChild);
+}
+
+// MAIN MESSAGE DELIVERY ROUTE INTERFACE (INTEGRATED CHATBOT LOGIC)
+async function sendData() {
+    const text = cipherInput.value.trim();
+    if (!text) return;
+
+    addToHistory(text);
+
+    const userDiv = document.createElement("div");
+    userDiv.className = "user-message";
+    userDiv.innerText = text;
+    messagesContainer.appendChild(userDiv);
+
+    cipherInput.value = "";
+    scrollToBottom();
+
+    try {
+        const response = await fetch("/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            const errorDiv = document.createElement("div");
+            errorDiv.className = "result-card";
+            errorDiv.innerHTML = `<h2>System Failure</h2><p>${data.error}</p>`;
+            messagesContainer.appendChild(errorDiv);
+            scrollToBottom();
+            return;
+        }
+
+        data.forEach(result => {
+            const cardDiv = document.createElement("div");
+            cardDiv.className = "result-card";
+            cardDiv.innerHTML = `
+                <h2>${result.solution}</h2>
+                <p><b>System Assurance:</b> ${result.confidence}%</p>
+                <p><b>Response:</b> ${result.reason}</p>
+                ${result.shift ? `<p><b>Module Block:</b> ${result.shift}</p>` : ''}
+                <div style="margin-top:12px; display:flex; gap:10px;">
+                    <button class="action-star-trigger" style="background:#ffbf00; color:#111; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">⭐ Star Log</button>
+                </div>
+            `;
+            
+            // Adding real trigger bindings to runtime star buttons
+            cardDiv.querySelector(".action-star-trigger").addEventListener("click", () => {
+                saveToStarredLogs(result.solution, result.reason);
+            });
+            
+            messagesContainer.appendChild(cardDiv);
+        });
+        
+        scrollToBottom();
+    } catch (error) {
+        console.error("Communication channel block failure:", error);
     }
+}
+
+// HIGH SPEED OCR MEDIA FLOW INTERFACES
+camBtn.addEventListener("click", () => { mediaInput.click(); });
+
+mediaInput.addEventListener("change", async () => {
+    if (mediaInput.files.length === 0) return;
+    const file = mediaInput.files[0];
+
+    const mediaStatusDiv = document.createElement("div");
+    mediaStatusDiv.className = "user-message";
+    mediaStatusDiv.innerText = `📸 [Analyzing Optical Image Matrix Matrix: ${file.name}...]`;
+    messagesContainer.appendChild(mediaStatusDiv);
+    scrollToBottom();
+
+    const formData = new FormData();
+    formData.append("media", file);
+
+    try {
+        const response = await fetch("/upload-media", { method: "POST", body: formData });
+        const data = await response.json();
+
+        if (data.error) return;
+
+        if (data.extracted_text) {
+            addToHistory(`Image Base: ${data.extracted_text}`);
+        }
+
+        data.analysis.forEach(result => {
+            const cardDiv = document.createElement("div");
+            cardDiv.className = "result-card";
+            cardDiv.innerHTML = `
+                <h2>${result.solution}</h2>
+                <p><b>Response Stream:</b> ${result.reason}</p>
+                <div style="margin-top:12px;">
+                    <button class="action-star-trigger" style="background:#ffbf00; color:#111; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">⭐ Star Log</button>
+                </div>
+            `;
+            
+            cardDiv.querySelector(".action-star-trigger").addEventListener("click", () => {
+                saveToStarredLogs(result.solution, result.reason);
+            });
+            
+            messagesContainer.appendChild(cardDiv);
+        });
+        scrollToBottom();
+
+    } catch (error) {
+        console.error("Pipeline breakdown tracking network processing:", error);
+    }
+    mediaInput.value = "";
+});
+
+sendBtn.addEventListener("click", sendData);
+cipherInput.value = "";
+cipherInput.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") sendData();
 });
 </script>
 
 </body>
 </html>
+
+
